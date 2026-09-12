@@ -1,0 +1,21 @@
+# Secrets - never commit
+*.key
+*.pem
+*.ppk
+id_rsa*
+id_ed25519*
+*.p12
+*.json.key
+credentials*.json
+service-account*.json
+.env
+.env.*
+secrets/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
