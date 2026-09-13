@@ -10,7 +10,7 @@
 ## Environment
 - Admin workstation: Windows + WSL2 (Debian 13.5)
 - Toolchain: git 2.47.3, gcloud CLI 584.0.0
-- GCP project ID: (redacted in public repo)
+- GCP project ID: proxmox-ha-lab-2026 (billing account ID intentionally not published)
 - Organization: auto-created at signup
 - Region/zone: europe-west3 (Frankfurt)
 - Internal IPs: pve1 -, pve2 -, pve3 -, pbs -
