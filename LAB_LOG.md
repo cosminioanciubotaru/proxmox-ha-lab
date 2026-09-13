@@ -44,3 +44,4 @@
 ## Evidence captured
 - evidence/01-budget-alerts.png (redacted)
 - evidence/02-budget-alerts.png (redacted)
+- Guest networking via Proxmox SDN/VXLAN, not plain Linux bridging: GCP's virtual network does not forward frames with unknown MAC addresses, so LXC/VM guests bridged onto vmbr0 are silently dropped. VXLAN encapsulates guest layer-2 traffic in UDP between the nodes' own IPs, which GCP accepts as normal node-to-node traffic.
