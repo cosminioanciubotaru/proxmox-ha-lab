@@ -7,7 +7,7 @@ Secure auth:      on
 
 Quorum information
 ------------------
-Date:             Mon Sep 14 20:37:02 2026
+Date:             Mon Sep 14 20:41:07 2026
 Quorum provider:  corosync_votequorum
 Nodes:            3
 Node ID:          0x00000001
@@ -82,10 +82,11 @@ totem {
 
 
 ## Notes
-- Cluster created on pve1 with: pvecm create pve-cluster --link0 10.10.0.2
-- pve2 and pve3 joined with: pvecm add 10.10.0.2 --link0 <own IP>
+- Cluster created on pve1: pvecm create pve-cluster --link0 10.10.0.2
+- pve2 and pve3 joined: pvecm add 10.10.0.2 --link0 <own IP>
 - --link0 binds the Corosync ring explicitly to each node's internal IP instead of relying on hostname resolution
-- Transport is knet (unicast). Corosync's older multicast mode does not work on GCP, where multicast is not supported
+- Transport is knet (unicast); Corosync's older multicast mode does not work on GCP
 - Joining replaces the node's /etc/pve with the cluster copy, so nodes must be joined before any local configuration
 - Root password had to be set on pve1: pvecm add authenticates to the existing cluster as root
 - Quorum is 2 of 3: one node can fail and the cluster still operates
+- Web UI reachable only through an IAP tunnel; see scripts/tunnel.sh
