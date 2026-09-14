@@ -63,3 +63,5 @@
 - pve2 and pve3: same Proxmox install (hostname, passwd, repo, kernel, reboot, proxmox-ve)
 - Then create the cluster with pvecm on pve1, join pve2 and pve3
 - Remember: GCP VPC MTU is 1460; guest MTU must be 1410 for VXLAN in Phase 5
+- Disk device letters are NOT consistent across nodes: pve1 has boot=sda, ceph=sdb; pve2 has boot=sdb, ceph=sda. Kernel assigns sdX in detection order, which is not guaranteed. GRUB install failed on pve2 until the correct disk was selected.
+- PHASE 4 RULE: before giving any disk to Ceph, run "lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS" on that node and identify the 50 GB disk with no mountpoint. Never assume sdb.
