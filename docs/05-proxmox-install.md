@@ -28,3 +28,10 @@
 - The initial firewall allowed only tcp:22 from the IAP range, so the 8006 tunnel failed with "4003: failed to connect to backend"
 - Added pve-allow-iap-webui for tcp:8006 and tcp:8007 from 35.235.240.0/20
 - This is not public exposure: the source is Google's authenticated IAP proxy, and traffic only flows after Google verifies the user's identity
+
+## Enterprise repository (post-install issue)
+- Installing proxmox-ve adds /etc/apt/sources.list.d/pve-enterprise.sources, which requires a paid subscription
+- Without one it returns 401 Unauthorized and apt update fails entirely, blocking all package operations
+- Disabled by appending "Enabled: no" to the deb822-format file on all three nodes, rather than deleting it: the file remains as a record and can be re-enabled with a one-word change
+- The no-subscription repository remains the only Proxmox source, per the zero-cost constraint
+- All three nodes then brought to the same version: kernel 7.0.14-17-pve, pve-manager 9.2.20
