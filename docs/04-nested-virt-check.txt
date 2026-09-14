@@ -1,0 +1,12 @@
+Address sizes:                           46 bits physical, 48 bits virtual
+Model name:                              Intel(R) Xeon(R) CPU @ 2.80GHz
+Virtualization:                          VT-x
+Virtualization type:                     full
+4
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        20G  2.0G   17G  11% /
+NAME  ZONE            MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP  STATUS
+pbs   europe-west3-c  e2-medium                   10.10.0.6                 RUNNING
+pve1  europe-west3-c  n2-standard-2               10.10.0.2                 RUNNING
+pve2  europe-west3-c  n2-standard-2               10.10.0.3                 RUNNING
+pve3  europe-west3-c  n2-standard-2               10.10.0.4                 RUNNING
