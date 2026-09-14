@@ -47,3 +47,4 @@
 - Guest networking via Proxmox SDN/VXLAN, not plain Linux bridging: GCP's virtual network does not forward frames with unknown MAC addresses, so LXC/VM guests bridged onto vmbr0 are silently dropped. VXLAN encapsulates guest layer-2 traffic in UDP between the nodes' own IPs, which GCP accepts as normal node-to-node traffic.
 - evidence/03-vpc-firewall.png (firewall rules in console, redacted)
 - SSD_TOTAL_GB quota (250 GB/region) blocked PBS creation: 3 pve nodes with pd-balanced already used 210 GB. Fixed by giving PBS pd-standard disks, which count against DISKS_TOTAL_GB (2048 GB) instead. Justified: PBS is a sequential throughput workload; Ceph is latency-sensitive and keeps SSD.
+- evidence/04-vm-instances.png (4 VMs running, External IP column empty)
