@@ -1,67 +1,75 @@
 # Proxmox HA Lab on GCP: Lab Log
 
 ## Status
-- Current phase: 1 (GCP setup) - VMs created, verifying nested virtualization
+- Current phase: 4 (Ceph) - not started
 - Trial activated: 2026-09-13
 - Trial ends: 2026-12-13 (90 days) or when credit is exhausted
-- Credit remaining: EUR 257.47 of EUR 257.47 (as of 2026-09-13)
-- VMs running: pve1, pve2, pve3, pbs (all 4, billing active)
+- Credit remaining: EUR 256 of EUR 257 (as of 2026-09-14)
+- VMs running: none (all stopped)
 
 ## Environment
 - Admin workstation: Windows + WSL2 (Debian 13.5)
 - Toolchain: git 2.47.3, gcloud CLI 584.0.0
 - GCP project ID: proxmox-ha-lab-2026 (billing account ID intentionally not published)
-- Organization: auto-created at signup
-- Region/zone: europe-west3 (Frankfurt)
+- Region/zone: europe-west3-c (Frankfurt)
+- VPC: pve-net, subnet pve-subnet 10.10.0.0/24, MTU 1460
 - Internal IPs: pve1 10.10.0.2, pve2 10.10.0.3, pve3 10.10.0.4, pbs 10.10.0.6
+- Proxmox VE 9.2.20, kernel 7.0.14-17-pve on all three nodes
+- Cluster: pve-cluster, 3 nodes, quorate, quorum 2 of 3
+
+## Disk layout (device letters are NOT consistent)
+- pve1: boot=sda, ceph=sdb
+- pve2: boot=sdb, ceph=sda
+- pve3: boot=sda, ceph=sdb
+- pbs:  50 GB pd-standard data disk
 
 ## Done
-- GitHub repo created (public, MIT license)
-- WSL2 Debian workstation set up; git identity, SSH key, repo cloned
-- .gitignore for secrets, repo folder structure (docs/ configs/ scripts/ evidence/)
-- gcloud CLI installed via Google signed apt repository
-- Free Trial activated 2026-09-13, EUR 257.47 credit
-- Budget alerts 25/50/75/90 percent (Actual), alerts-only, billing-account scope
+- Phase 0: GitHub repo, WSL2 Debian workstation, git + SSH key, gcloud CLI
+- Phase 1: trial activated, budget alerts 25/50/75/90, project, VPC, firewall, Cloud NAT, 4 VMs, nested virt (VT-x) verified
+- Phase 2: Proxmox VE installed on all three nodes from Debian 13 + no-subscription repo
+- Phase 3: three-node cluster created and quorate
 
 ## Next
-- Create dedicated GCP project, enable Compute Engine API
-- gcloud auth login, set default project/region/zone
-- Check vCPU quota in europe-west3
-- Create VPC and firewall rules
-- Create 4 VMs with nested virtualization
+- Phase 4 Ceph:
+  1. lsblk on each node to confirm the empty 50 GB disk (pve2 differs!)
+  2. pveceph install on all three
+  3. pveceph init, monitor on each node
+  4. one OSD per node from the 50 GB disks
+  5. create pool, add as Proxmox storage
+  6. verify ceph -s shows HEALTH_OK
+- Watch for memory pressure: 8 GB per node is tight for Ceph
 
 ## Decisions
-- Google Cloud over Azure: Azure trial capped at 4 vCPUs and 30 days (add source)
-- Sizing = 8 vCPUs total: GCP Free Trial allows max 8 concurrent cores (https://cloud.google.com/terms/trial, section 3.1)
+- Google Cloud over Azure: Azure trial capped at 4 vCPUs and 30 days
+- Sizing 8 vCPUs total: GCP Free Trial allows max 8 concurrent cores
 - Nested virtualization on cloud: no local hardware available
-- Admin workstation on WSL2 Debian: bash commands in docs run unchanged on nodes, OpenSSH instead of bundled PuTTY, no CRLF line-ending issues
-- Region europe-west3 (Frankfurt) over cheaper US regions: ~20ms vs ~110ms latency; Corosync is latency-sensitive and the web UI is used heavily
-- Budget "Alerts only" instead of "Spend cap enforcement": cap is Preview, covers limited services only, and pauses usage - a pause mid-test would corrupt HA/Ceph experiments
+- WSL2 Debian workstation: bash commands run unchanged on nodes, no CRLF issues
+- europe-west3 over cheaper US regions: ~20ms vs ~110ms; Corosync is latency-sensitive
+- All 4 VMs in one zone: cross-zone traffic is billed and adds latency; this lab demonstrates Proxmox HA, not cloud HA
+- Custom VPC instead of the default network: default has 42 subnets and permits SSH from 0.0.0.0/0
+- Budget "Alerts only" not "Spend cap enforcement": cap is Preview and pauses usage, which would corrupt HA/Ceph tests
+- Cloud NAT over public IPs: cost is comparable, but no public IP means no address to scan
+- pve nodes pd-balanced (SSD, Ceph is latency-sensitive); pbs pd-standard (sequential backup throughput)
+- Proxmox installed on Debian rather than the ISO: no Proxmox image on GCP, and it shows PVE is a package layer on Debian
+- Administration via cosmin@pam with the Administrator role, not root@pam
+- Guest networking will use SDN/VXLAN: GCP does not forward frames with unknown MAC addresses
 
 ## Problems and fixes
-- LAB_LOG.md got mangled when pasted via Notepad (Markdown escaped, lines prefixed). Fixed by writing the file with a shell heredoc instead of the clipboard.
+- LAB_LOG.md mangled by clipboard paste; fixed by writing with a shell heredoc
+- SSD_TOTAL_GB quota (250 GB) blocked PBS: 3 nodes on pd-balanced used 210 GB. Fixed with pd-standard for PBS
+- IAP tunnel to 8006 failed with "4003: failed to connect to backend": firewall only allowed tcp:22 from the IAP range. Added pve-allow-iap-webui for 8006/8007 from 35.235.240.0/20
+- Web login failed 401 despite correct password: a Linux user is not automatically a Proxmox user. Fixed with pveum user add cosmin@pam plus the Administrator role
+- GRUB install failed on pve2: disk letters are swapped there (boot=sdb). Kernel assigns sdX in detection order, which is not guaranteed
+- apt update broke with 401 Unauthorized: proxmox-ve adds the enterprise repo. Disabled with "Enabled: no" in pve-enterprise.sources on all three nodes
+
+## Critical reminders
+- PHASE 4: run "lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS" per node before touching any disk. Never assume sdb
+- PHASE 5: GCP VPC MTU is 1460; VXLAN adds 50 bytes, so guest MTU must be 1410. Wrong MTU = small packets work, large transfers hang
+- Web UI requires an IAP tunnel: ./scripts/tunnel.sh pve1
+- Stop all VMs at session end: gcloud compute instances stop pve1 pve2 pve3 pbs --zone=europe-west3-c
 
 ## Evidence captured
-- evidence/01-budget-alerts.png (redacted)
-- evidence/02-budget-alerts.png (redacted)
-- Guest networking via Proxmox SDN/VXLAN, not plain Linux bridging: GCP's virtual network does not forward frames with unknown MAC addresses, so LXC/VM guests bridged onto vmbr0 are silently dropped. VXLAN encapsulates guest layer-2 traffic in UDP between the nodes' own IPs, which GCP accepts as normal node-to-node traffic.
-- evidence/03-vpc-firewall.png (firewall rules in console, redacted)
-- SSD_TOTAL_GB quota (250 GB/region) blocked PBS creation: 3 pve nodes with pd-balanced already used 210 GB. Fixed by giving PBS pd-standard disks, which count against DISKS_TOTAL_GB (2048 GB) instead. Justified: PBS is a sequential throughput workload; Ceph is latency-sensitive and keeps SSD.
-- evidence/04-vm-instances.png (4 VMs running, External IP column empty)
-
-## Session 2026-09-14
-- Created VPC pve-net (10.10.0.0/24), firewall rules, Cloud NAT for outbound-only internet
-- Created 4 VMs; hit SSD_TOTAL_GB quota, resolved by putting PBS on pd-standard
-- Verified nested virtualization (VT-x) active on pve1
-- Installed Proxmox VE 9.2.18 on pve1: repo, kernel 7.0.14-16-pve, reboot, proxmox-ve packages
-- Verified serial console access before the kernel reboot; set console passwords
-- Added firewall rule for 8006/8007 from the IAP range after the tunnel failed with 4003
-- Registered cosmin@pam with the Administrator role; web UI reachable at https://localhost:8006 via IAP tunnel
-- All VMs stopped at session end
-
-## Next session
-- pve2 and pve3: same Proxmox install (hostname, passwd, repo, kernel, reboot, proxmox-ve)
-- Then create the cluster with pvecm on pve1, join pve2 and pve3
-- Remember: GCP VPC MTU is 1460; guest MTU must be 1410 for VXLAN in Phase 5
-- Disk device letters are NOT consistent across nodes: pve1 has boot=sda, ceph=sdb; pve2 has boot=sdb, ceph=sda. Kernel assigns sdX in detection order, which is not guaranteed. GRUB install failed on pve2 until the correct disk was selected.
-- PHASE 4 RULE: before giving any disk to Ceph, run "lsblk -o NAME,SIZE,TYPE,MOUNTPOINTS" on that node and identify the 50 GB disk with no mountpoint. Never assume sdb.
+- 01/02-budget-alerts.png, 03-vpc-firewall.png, 04-vm-instances.png
+- 05-grub-disk-selection.png, 06-serial-console.png
+- 08-proxmox-ui-first-login.png, 10-cluster-three-nodes.png
+- docs/01-quota, 02-network, 03-vms, 04-nested-virt-check, 05-proxmox-install, 06-cluster
