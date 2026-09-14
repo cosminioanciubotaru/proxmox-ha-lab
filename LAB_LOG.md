@@ -1,11 +1,11 @@
 # Proxmox HA Lab on GCP: Lab Log
 
 ## Status
-- Current phase: 1 (GCP setup)
+- Current phase: 1 (GCP setup) - VMs created, verifying nested virtualization
 - Trial activated: 2026-09-13
 - Trial ends: 2026-12-13 (90 days) or when credit is exhausted
 - Credit remaining: EUR 257.47 of EUR 257.47 (as of 2026-09-13)
-- VMs running: none
+- VMs running: pve1, pve2, pve3, pbs (all 4, billing active)
 
 ## Environment
 - Admin workstation: Windows + WSL2 (Debian 13.5)
@@ -13,7 +13,7 @@
 - GCP project ID: proxmox-ha-lab-2026 (billing account ID intentionally not published)
 - Organization: auto-created at signup
 - Region/zone: europe-west3 (Frankfurt)
-- Internal IPs: pve1 -, pve2 -, pve3 -, pbs -
+- Internal IPs: pve1 10.10.0.2, pve2 10.10.0.3, pve3 10.10.0.4, pbs 10.10.0.6
 
 ## Done
 - GitHub repo created (public, MIT license)
@@ -46,3 +46,4 @@
 - evidence/02-budget-alerts.png (redacted)
 - Guest networking via Proxmox SDN/VXLAN, not plain Linux bridging: GCP's virtual network does not forward frames with unknown MAC addresses, so LXC/VM guests bridged onto vmbr0 are silently dropped. VXLAN encapsulates guest layer-2 traffic in UDP between the nodes' own IPs, which GCP accepts as normal node-to-node traffic.
 - evidence/03-vpc-firewall.png (firewall rules in console, redacted)
+- SSD_TOTAL_GB quota (250 GB/region) blocked PBS creation: 3 pve nodes with pd-balanced already used 210 GB. Fixed by giving PBS pd-standard disks, which count against DISKS_TOTAL_GB (2048 GB) instead. Justified: PBS is a sequential throughput workload; Ceph is latency-sensitive and keeps SSD.

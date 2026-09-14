@@ -15,3 +15,8 @@
 - Outbound via Cloud NAT (pve-router / pve-nat, auto-allocated IP) for Debian and Proxmox package downloads
 - NAT is structurally outbound-only: inbound packets match no translation entry and are dropped
 - Inbound admin access via IAP tunnel, authenticated against the Google account
+
+## MTU (critical for Phase 5)
+- GCP VPC MTU is 1460, not the usual 1500
+- VXLAN encapsulation adds 50 bytes -> guest MTU must be 1410
+- Failure mode if wrong: small packets and ping succeed, large transfers hang with no error
