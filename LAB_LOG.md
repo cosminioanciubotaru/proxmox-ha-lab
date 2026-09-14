@@ -48,3 +48,18 @@
 - evidence/03-vpc-firewall.png (firewall rules in console, redacted)
 - SSD_TOTAL_GB quota (250 GB/region) blocked PBS creation: 3 pve nodes with pd-balanced already used 210 GB. Fixed by giving PBS pd-standard disks, which count against DISKS_TOTAL_GB (2048 GB) instead. Justified: PBS is a sequential throughput workload; Ceph is latency-sensitive and keeps SSD.
 - evidence/04-vm-instances.png (4 VMs running, External IP column empty)
+
+## Session 2026-09-14
+- Created VPC pve-net (10.10.0.0/24), firewall rules, Cloud NAT for outbound-only internet
+- Created 4 VMs; hit SSD_TOTAL_GB quota, resolved by putting PBS on pd-standard
+- Verified nested virtualization (VT-x) active on pve1
+- Installed Proxmox VE 9.2.18 on pve1: repo, kernel 7.0.14-16-pve, reboot, proxmox-ve packages
+- Verified serial console access before the kernel reboot; set console passwords
+- Added firewall rule for 8006/8007 from the IAP range after the tunnel failed with 4003
+- Registered cosmin@pam with the Administrator role; web UI reachable at https://localhost:8006 via IAP tunnel
+- All VMs stopped at session end
+
+## Next session
+- pve2 and pve3: same Proxmox install (hostname, passwd, repo, kernel, reboot, proxmox-ve)
+- Then create the cluster with pvecm on pve1, join pve2 and pve3
+- Remember: GCP VPC MTU is 1460; guest MTU must be 1410 for VXLAN in Phase 5
