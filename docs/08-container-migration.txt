@@ -1,0 +1,37 @@
+VMID       Status     Lock         Name                
+100        running                 test-ct             
+
+arch: amd64
+cores: 1
+hostname: test-ct
+memory: 512
+ostype: debian
+rootfs: vm-storage:vm-100-disk-0,size=4G
+swap: 512
+unprivileged: 1
+
+NAME           SIZE   PARENT  FMT  PROT  LOCK
+vm-100-disk-0  4 GiB            2        excl
+
+## Migration test result
+Command: pct migrate 100 pve2 --restart
+Duration: 5 seconds
+
+Key log line:
+  volume 'vm-storage:vm-100-disk-0' is on shared storage 'vm-storage'
+
+No data was transferred. Only the container configuration moved between nodes;
+pve2 reads the same RBD image from Ceph that pve1 was using. On local storage
+the full 4 GB rootfs would have been copied over the network.
+
+LXC containers restart during migration (brief downtime). KVM VMs on shared
+storage support true live migration with no interruption - to be tested in Phase 6.
+
+## Notes
+- Container created via CLI (pct create), not the web UI: the UI's Create CT
+  dialog requires a bridge and will not proceed without one. No bridge exists
+  on these nodes because Google's Debian image configures eth0 directly and
+  no vmbr0 was created. Guest networking is Phase 5 (SDN/VXLAN).
+- Container has no network device at this stage. It boots, runs and migrates
+  regardless, which is sufficient to validate shared storage and HA.
+- Created unprivileged: the container's root maps to an unprivileged host user.
