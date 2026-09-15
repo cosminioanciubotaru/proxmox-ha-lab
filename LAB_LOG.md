@@ -74,3 +74,5 @@
 - 08-proxmox-ui-first-login.png, 10-cluster-three-nodes.png
 - docs/01-quota, 02-network, 03-vms, 04-nested-virt-check, 05-proxmox-install, 06-cluster
 - 2026-09-15: disk letters changed across reboot. pve2 was boot=sdb/ceph=sda yesterday, today all three are boot=sda/ceph=sdb. Confirms device letters are assigned per boot and must never be recorded as fixed. Always re-check with lsblk in the same session as any disk operation.
+- pve2 boots in EFI mode but has grub-pc (BIOS) installed, not grub-efi-amd64. GRUB updates therefore do not reach the ESP that pve2 actually boots from. Not breaking anything now; to fix later with: apt install grub-efi-amd64
+- Ceph version mismatch: pve1 installed 19.2.3 Squid, pve2 installed 20.2 Tentacle from the same ceph-tentacle repository. Must be evened up before initializing the Ceph cluster.
