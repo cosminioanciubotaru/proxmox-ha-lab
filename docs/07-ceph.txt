@@ -1,0 +1,75 @@
+  cluster:
+    id:     cba80422-92ec-4a6a-a9fb-b395d9946325
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum pve2,pve3,pve1 (age 12m) [leader: pve2]
+    mgr: pve2(active, since 23m), standbys: pve1
+    osd: 3 osds: 3 up (since 4m), 3 in (since 4m)
+ 
+  data:
+    pools:   2 pools, 122 pgs
+    objects: 2 objects, 577 KiB
+    usage:   82 MiB used, 150 GiB / 150 GiB avail
+    pgs:     122 active+clean
+ 
+
+ID  CLASS  WEIGHT   TYPE NAME      STATUS  REWEIGHT  PRI-AFF
+-1         0.14639  root default                            
+-3         0.04880      host pve1                           
+ 0    ssd  0.04880          osd.0      up   1.00000  1.00000
+-5         0.04880      host pve2                           
+ 1    ssd  0.04880          osd.1      up   1.00000  1.00000
+-7         0.04880      host pve3                           
+ 2    ssd  0.04880          osd.2      up   1.00000  1.00000
+
+pool 1 '.mgr' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 1 pgp_num 1 autoscale_mode on last_change 19 flags hashpspool stripe_width 0 pg_num_max 32 pg_num_min 1 application mgr read_balance_score 3.00
+pool 2 'vm-storage' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 121 pgp_num 116 pg_num_target 32 pgp_num_target 32 pg_num_pending 120 autoscale_mode on last_change 53 lfor 0/53/53 flags hashpspool stripe_width 0 application rbd read_balance_score 1.04
+
+
+Name              Type     Status     Total (KiB)      Used (KiB) Available (KiB)        %
+local              dir     active        20401796         7174964        12273392   35.17%
+vm-storage         rbd     active        49775488               0        49775488    0.00%
+
+[global]
+	auth_client_required = cephx
+	auth_cluster_required = cephx
+	auth_service_required = cephx
+	cluster_network = 10.10.0.0/24
+	fsid = cba80422-92ec-4a6a-a9fb-b395d9946325
+	mon_allow_pool_delete = true
+	mon_host = 10.10.0.3 10.10.0.4 10.10.0.2
+	ms_bind_ipv4 = true
+	ms_bind_ipv6 = false
+	osd_pool_default_min_size = 2
+	osd_pool_default_size = 3
+	public_network = 10.10.0.0/24
+
+[client]
+	keyring = /etc/pve/priv/$cluster.$name.keyring
+
+[client.crash]
+	keyring = /etc/pve/ceph/$cluster.$name.keyring
+
+[mon.pve1]
+	public_addr = 10.10.0.2
+
+[mon.pve2]
+	public_addr = 10.10.0.3
+
+[mon.pve3]
+	public_addr = 10.10.0.4
+
+
+## Notes
+- Ceph 20.2.4 Tentacle, no-subscription repository
+- 3 monitors (quorum 2 of 3), 2 managers (active + standby)
+- 3 OSDs, one 50 GB pd-balanced disk per node, BlueStore
+- Pool vm-storage: size 3, min_size 2 - three replicas, writes stop below two copies
+- 150 GiB raw, ~47.5 GiB usable
+- public_network and cluster_network both 10.10.0.0/24. In production these would be separate physical networks so replication traffic does not compete with client I/O; only one subnet is available here
+
+## Problems hit
+- pve1's first pveceph install was interrupted and left only the Ceph client libraries: ceph-mon, ceph-osd, ceph-mgr and ceph-base were missing. apt full-upgrade did NOT fix it, because upgrade only touches packages that are already installed. Re-running pveceph install resolved it
+- Ceph version differed between nodes (19.2.3 Squid on pve1, 20.2.4 Tentacle on pve2/pve3) from the same repository; evened up before pveceph init
+- Ctrl+C on a gcloud ssh --command kills the local command but not the remote process: apt kept running and held the dpkg lock, causing "Could not get lock /var/lib/dpkg/lock-frontend" on the retry
