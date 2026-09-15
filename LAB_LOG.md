@@ -73,3 +73,4 @@
 - 05-grub-disk-selection.png, 06-serial-console.png
 - 08-proxmox-ui-first-login.png, 10-cluster-three-nodes.png
 - docs/01-quota, 02-network, 03-vms, 04-nested-virt-check, 05-proxmox-install, 06-cluster
+- 2026-09-15: disk letters changed across reboot. pve2 was boot=sdb/ceph=sda yesterday, today all three are boot=sda/ceph=sdb. Confirms device letters are assigned per boot and must never be recorded as fixed. Always re-check with lsblk in the same session as any disk operation.
