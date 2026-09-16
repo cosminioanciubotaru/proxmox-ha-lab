@@ -94,3 +94,17 @@ hypervisor HA covers everything including services that cannot be clustered;
 application redundancy covers those that can, with far lower downtime.
 Also to demonstrate: live migration of a running KVM VM (zero downtime for
 PLANNED maintenance, unlike unplanned node loss).
+
+## Session 2026-09-16
+- Phase 6 HA: ct:100 added to HA management (max_restart 3, max_relocate 3), fencing armed
+- Failover test 1 (instances reset pve2): NO failover - node rebooted faster than Corosync's detection threshold, all 3 nodes stayed in membership. Correct behaviour, not a fault
+- Failover test 2 (instances stop pve2): ct:100 recovered on pve1 in ~30s, measured at 13s poll resolution
+- One node loss triggered three independent failovers: the guest, the Ceph manager (standby promoted), and the HA CRM master role. None moved back on recovery
+- Ceph returned to HEALTH_OK immediately when pve2 came back
+- Created KVM VM 101 (test-vm, 512 MB, 4 GB disk on vm-storage) for the live migration test
+- Live migration BLOCKED: the Alpine ISO was attached from pve1's local storage, which pve3 cannot read. Proxmox refused rather than silently copying it. Demonstrates the shared-storage requirement precisely
+- Next: detach ide2, retry qm migrate 101 pve3 --online
+
+## Next session
+1. qm set 101 --delete ide2, then qm migrate 101 pve3 --online (zero-downtime live migration of a running VM)
+2. Then Phase 5: SDN/VXLAN guest networking. Remember MTU 1410 (GCP VPC is 1460, VXLAN adds 50 bytes)
