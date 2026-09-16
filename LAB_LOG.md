@@ -77,3 +77,20 @@
 - pve2 boots in EFI mode but has grub-pc (BIOS) installed, not grub-efi-amd64. GRUB updates therefore do not reach the ESP that pve2 actually boots from. Not breaking anything now; to fix later with: apt install grub-efi-amd64
 - Ceph version mismatch: pve1 installed 19.2.3 Squid, pve2 installed 20.2 Tentacle from the same ceph-tentacle repository. Must be evened up before initializing the Ceph cluster.
 - evidence/11-ceph-health-ok.png (Ceph HEALTH_OK, 3 OSDs, 3 monitors in the UI)
+
+## Plan revision 2026-09-16: two levels of failover
+Phase 6 (hypervisor HA): restart-based failover of ct:100. Node dies, cluster
+restarts the guest elsewhere. Downtime to be measured, expected 60-120s.
+This is what all hypervisor HA does (Proxmox, VMware HA, Hyper-V): when a node
+loses power its RAM is gone, so a fresh start elsewhere is the only option.
+
+Phase 8 addition (application-level redundancy): two web server containers on
+different nodes serving the same static site, fronted by a keepalived virtual
+IP. Both run simultaneously, so a node failure means sub-second failover with
+no restart. Depends on Phase 5 networking.
+
+Both will be tested with measured downtime. The point of documenting both:
+hypervisor HA covers everything including services that cannot be clustered;
+application redundancy covers those that can, with far lower downtime.
+Also to demonstrate: live migration of a running KVM VM (zero downtime for
+PLANNED maintenance, unlike unplanned node loss).
