@@ -50,3 +50,19 @@ migration moves a running KVM VM between nodes with no interruption.
 
 Zero downtime for UNPLANNED node loss requires redundancy at the application layer:
 two instances running simultaneously behind a virtual IP. Tested separately in Phase 8.
+
+## Recovery after pve2 returned
+- Ceph: HEALTH_OK immediately, 3 OSDs up. The pool holds almost no data, so
+  re-replication of the missing third copy was instant.
+- ct:100 stayed on pve1. HA does not move guests back when a node returns:
+  another relocation would mean another interruption for no benefit.
+
+## Three independent failovers from one node loss
+Killing pve2 triggered failover at three separate layers, all automatic:
+  1. ct:100          pve2 -> pve1   (HA manager restarted the guest)
+  2. Ceph manager    pve2 -> pve1   (standby MGR took over)
+  3. HA CRM master   pve2 -> pve3   (another node took the master role)
+None of these required intervention, and none of them moved back afterwards.
+This is why a second MGR was created in Phase 4 rather than leaving a single one:
+without a standby, losing that node would have left the cluster without its
+management and metrics layer during the incident.
