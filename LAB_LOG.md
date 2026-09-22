@@ -108,3 +108,11 @@ PLANNED maintenance, unlike unplanned node loss).
 ## Next session
 1. qm set 101 --delete ide2, then qm migrate 101 pve3 --online (zero-downtime live migration of a running VM)
 2. Then Phase 5: SDN/VXLAN guest networking. Remember MTU 1410 (GCP VPC is 1460, VXLAN adds 50 bytes)
+
+## Session 2026-09-22
+- Credit EUR 247 of 257, 82 days left
+- Live migration of VM 101 pve1 -> pve3: 30 ms downtime, 138 MiB RAM transferred, 7 s total
+- Proven from inside the guest: login session survived, uptime continuous (19 -> 35 min), per-second tick file has no gap
+- Correction: CD must be EJECTED from the running VM (ide2 none), not deleted before boot; deleting first left the VM with nothing to boot
+- Phase 6 complete: HA failover (unplanned, ~30 s) and live migration (planned, 30 ms) both measured
+- evidence/14-live-migration-proof.png
