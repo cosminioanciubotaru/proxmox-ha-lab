@@ -116,3 +116,9 @@ PLANNED maintenance, unlike unplanned node loss).
 - Correction: CD must be EJECTED from the running VM (ide2 none), not deleted before boot; deleting first left the VM with nothing to boot
 - Phase 6 complete: HA failover (unplanned, ~30 s) and live migration (planned, 30 ms) both measured
 - evidence/14-live-migration-proof.png
+- Phase 5 (partial): VXLAN zone gvxlan / VNet gnet live on all 3 nodes, guest net 10.20.0.0/24, MTU 1410
+- Cross-node guest ping pve3 -> pve1 works; MTU boundary verified at exactly 1410
+- Finding: SDN apply reloads network on all nodes regardless of zone node list
+- Decision: VXLAN over GCP custom routes (routes are static, guests move)
+- evidence/15-vxlan-cross-node-ping.png
+- Next: internet access for guests
