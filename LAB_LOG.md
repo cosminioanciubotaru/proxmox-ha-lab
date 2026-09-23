@@ -126,3 +126,9 @@ PLANNED maintenance, unlike unplanned node loss).
 - Finding: VXLAN zones ignore subnet Gateway/SNAT (layer 3 zones only), so the gateway is built by hand
 - Observed: guest throughput only 174 kB/s, DNS returns IPv6-only for deb.debian.org while the guest net is IPv4-only
 - Config is temporary and lost on reboot; stage 2 is keepalived across all 3 nodes
+- Phase 5 COMPLETE. Gateway 10.20.0.1 is now a keepalived/VRRP virtual IP across all three nodes
+- Each node also has a permanent address on gnet (.11/.12/.13): VRRP needs a real source address on the interface, otherwise keepalived stays in FAULT
+- ip_forward and the MASQUERADE rule made persistent (sysctl.d file + guest-nat.service)
+- Gateway failover test: pve1 powered off, address moved to pve2, container lost 0 packets
+- Reboot test on pve1: everything returned, and nopreempt correctly kept the gateway on pve2
+- evidence/16-vrrp-gateway-failover.png, evidence/17-gateway-failover-no-packet-loss.png

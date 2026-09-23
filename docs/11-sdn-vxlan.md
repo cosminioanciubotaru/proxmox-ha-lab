@@ -109,3 +109,58 @@ A single gateway on pve1 is a single point of failure, which contradicts the
 point of the lab. Plan: keepalived on all three nodes sharing 10.20.0.1 as a
 virtual IP on gnet, with the NAT rule and ip_forward made persistent. Same
 technique as the Caddy pair planned for phase 8.
+
+## Stage 2: highly available gateway with keepalived (VRRP)
+
+A single gateway on one node contradicts the point of the lab, so 10.20.0.1 was
+turned into a virtual IP shared by all three nodes.
+
+Design:
+- keepalived on every node, vrrp_instance GUESTGW, virtual_router_id 51
+- all three configured state BACKUP; priority decides: pve1 150, pve2 140, pve3 130
+- advert_int 1: announcements once per second, three missed = holder is gone
+- nopreempt: a recovered node does NOT reclaim the address. Reclaiming would
+  move the gateway a second time and interrupt traffic for no benefit. Same
+  reasoning as HA not moving a guest back after a node returns.
+- VRRP announcements travel on gnet, i.e. inside the VXLAN tunnel, so GCP never
+  sees them and no cloud firewall rule was needed even though VRRP is neither
+  TCP, UDP nor ICMP.
+
+Persistence, one piece per mechanism:
+- /etc/network/interfaces.d/gnet-gw: permanent per-node address on gnet
+  (pve1 .11, pve2 .12, pve3 .13), written as an alias gnet:0 so ifupdown2 adds
+  an address instead of taking over gnet, which SDN manages
+- /etc/sysctl.d/99-guest-gateway.conf: net.ipv4.ip_forward=1
+- systemd unit guest-nat.service: recreates the MASQUERADE rule at boot,
+  using iptables -C || -A so it is safe to run repeatedly
+
+Problem hit: keepalived went straight into FAULT state, "no IPv4 address for
+interface". VRRP announcements must be sourced from a real address on the
+interface, and the shared address does not count because it may belong to
+another node. That is why each node needed its own permanent .11/.12/.13
+address in addition to the shared .1.
+
+## Gateway failover test
+Setup: ct:100 migrated to pve2 first, so only the gateway would move. Gateway
+was on pve1. Ping from inside the container, once per second, with -O so that
+missed packets are printed rather than silently skipped.
+
+Result: pve1 powered off. The address appeared on pve2 between two 16-second
+polls. The container's ping showed 96 consecutive replies, no missed packets,
+0% loss. The outage was shorter than the one-second measurement interval.
+
+Side observation: round-trip time dropped from ~1.75 ms to ~1.12 ms at the
+moment of failover. Before, the container on pve2 reached the gateway on pve1
+across the tunnel; afterwards the gateway was local, removing one hop.
+
+## Reboot test
+pve1 restarted and came back with:
+  10.20.0.11 present, 10.20.0.1 absent   (nopreempt honoured)
+  net.ipv4.ip_forward = 1                (from the sysctl file)
+  MASQUERADE rule present                (recreated by guest-nat.service)
+  keepalived and guest-nat both active
+
+## Three kinds of failover now measured
+  container after node loss    HA restart              ~30 s
+  running VM, planned move     live migration          30 ms
+  gateway after node loss      VRRP address takeover   < 1 s, 0 packets lost
