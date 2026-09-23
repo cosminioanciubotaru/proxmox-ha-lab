@@ -122,3 +122,7 @@ PLANNED maintenance, unlike unplanned node loss).
 - Decision: VXLAN over GCP custom routes (routes are static, guests move)
 - evidence/15-vxlan-cross-node-ping.png
 - Next: internet access for guests
+- Guest internet access working (stage 1): manual gateway 10.20.0.1 on pve1's gnet, ip_forward, MASQUERADE to ens4. ct:100 reached 1.1.1.1 and completed apt-get update (16.9 MB)
+- Finding: VXLAN zones ignore subnet Gateway/SNAT (layer 3 zones only), so the gateway is built by hand
+- Observed: guest throughput only 174 kB/s, DNS returns IPv6-only for deb.debian.org while the guest net is IPv4-only
+- Config is temporary and lost on reboot; stage 2 is keepalived across all 3 nodes

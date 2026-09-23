@@ -63,3 +63,49 @@ Restarted with: ha-manager set ct:100 --state started
 ## Still to do
 Internet access for guests (NAT on the nodes toward Cloud NAT).
 The VM's address is set by hand inside Alpine and is lost on reboot.
+
+## Internet access for guests (stage 1: temporary, pve1 only)
+
+Documentation finding: in a VXLAN zone, the subnet's Gateway and SNAT options
+have no effect. Per the Proxmox SDN docs, those are deployed only on layer 3
+zones (Simple and EVPN); a VXLAN zone assumes an external router exists.
+The gateway therefore has to be built by hand.
+
+Two layers of NAT are involved:
+  guest 10.20.0.100
+    -> node rewrites source to 10.10.0.2   (GCP only accepts assigned addresses)
+    -> Cloud NAT rewrites to a public IP   (configured in phase 1)
+    -> internet
+
+Temporary configuration on pve1 (not persistent, lost on reboot):
+  ip addr add 10.20.0.1/24 dev gnet
+  sysctl -w net.ipv4.ip_forward=1
+  iptables -t nat -A POSTROUTING -s 10.20.0.0/24 -o ens4 -j MASQUERADE
+Container: gw=10.20.0.1 added to net0.
+
+Tests from ct:100:
+  ping gateway 10.20.0.1      2/2, 0.04-0.11 ms
+  ping 1.1.1.1                3/3, 1.5 ms, ttl=59 (five router hops; compare
+                              ttl=64 for the cross-node guest ping, which
+                              crosses no router because of the tunnel)
+  getent hosts deb.debian.org resolved
+  apt-get update              16.9 MB fetched successfully
+
+The apt-get test matters more than the ping: dozens of HTTPS connections moving
+real data is precisely the workload that fails when the MTU is wrong.
+
+Observed limitation: throughput was 174 kB/s (16.9 MB in 1m37s), while the node
+itself fetches at ~50 MB/s. Name resolution returned IPv6 addresses only while
+the guest network is IPv4-only, so per-connection IPv6 timeouts and fallback are
+the likely cause. Not investigated further; it does not block the planned
+workloads.
+
+Also noted: the container inherited nameserver 169.254.169.254, Google's metadata
+server, from the node. It works because the query is masqueraded to the node's
+address, but it is a cloud-specific dependency that would not exist on hardware.
+
+## Next: stage 2, make the gateway highly available
+A single gateway on pve1 is a single point of failure, which contradicts the
+point of the lab. Plan: keepalived on all three nodes sharing 10.20.0.1 as a
+virtual IP on gnet, with the NAT rule and ip_forward made persistent. Same
+technique as the Caddy pair planned for phase 8.
