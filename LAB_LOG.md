@@ -132,3 +132,7 @@ PLANNED maintenance, unlike unplanned node loss).
 - Gateway failover test: pve1 powered off, address moved to pve2, container lost 0 packets
 - Reboot test on pve1: everything returned, and nopreempt correctly kept the gateway on pve2
 - evidence/16-vrrp-gateway-failover.png, evidence/17-gateway-failover-no-packet-loss.png
+- Phase 8 started: ct:110 web1 (pve1, 10.20.0.110) and ct:111 web2 (pve3, 10.20.0.111), both serving Caddy 2.11.4 with a Served-By header
+- Guest DNS set to 1.1.1.1 at creation; downloads much faster than ct:100's 174 kB/s
+- Template had to be downloaded on pve3 too (local storage, per node)
+- Next: keepalived VIP 10.20.0.50 across both, then the failover test
