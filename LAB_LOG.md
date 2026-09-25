@@ -136,3 +136,8 @@ PLANNED maintenance, unlike unplanned node loss).
 - Guest DNS set to 1.1.1.1 at creation; downloads much faster than ct:100's 174 kB/s
 - Template had to be downloaded on pve3 too (local storage, per node)
 - Next: keepalived VIP 10.20.0.50 across both, then the failover test
+- Web VIP 10.20.0.50 live via keepalived in ct:110/111 (virtual_router_id 61, web1 prio 150, web2 prio 130)
+- Port forward on pve2 + firewall rule pve-allow-iap-demo make the page reachable at http://localhost:8080 through an IAP tunnel
+- DNAT alone returned nothing; the matching MASQUERADE rule was required so replies return via pve2
+- Web failover test: pve1 powered off, last web1 response 19:01:14, first web2 response 19:01:15, zero failed requests
+- evidence/18-web-before-failover.png, 19-web-after-failover.png, 20-web-failover-loop.png
