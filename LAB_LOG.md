@@ -141,3 +141,9 @@ PLANNED maintenance, unlike unplanned node loss).
 - DNAT alone returned nothing; the matching MASQUERADE rule was required so replies return via pve2
 - Web failover test: pve1 powered off, last web1 response 19:01:14, first web2 response 19:01:15, zero failed requests
 - evidence/18-web-before-failover.png, 19-web-after-failover.png, 20-web-failover-loop.png
+- Phase 7 COMPLETE. PBS 4.2.6 on pbs, datastore backupfs (ext4, 47 GB), user backup@pbs with DatastoreBackup only (can write backups, cannot delete them)
+- Cluster storage pbs-backup added with certificate fingerprint pinned
+- Dedup measured: second backup of an unchanged container = 0 B transferred, 100% reused, datastore did not grow
+- Verify job: 3/3 groups, 0 errors
+- RESTORE TEST: wrote a marker file, backed up, removed from HA, destroyed the container (confirmed vm-100-disk-0 gone from Ceph), restored from PBS in 7.7s, marker file read back intact
+- Retention: prune job daily-prune, 7 daily / 4 weekly / 6 monthly. Note PBS 4 uses prune jobs, not datastore keep-* settings

@@ -1,0 +1,97 @@
+┌──────────┬─────────────────────────┬─────────┐
+│ name     │ path                    │ comment │
+╞══════════╪═════════════════════════╪═════════╡
+│ backupfs │ /mnt/datastore/backupfs │         │
+└──────────┴─────────────────────────┴─────────┘
+
+┌─────────────┬─────────┬──────────┬────┬──────────┬───────────┬───────────┬─────────────┬────────────┬─────────────┬──────────────┬─────────────┐
+│ id          │ disable │ store    │ ns │ schedule │ max-depth │ keep-last │ keep-hourly │ keep-daily │ keep-weekly │ keep-monthly │ keep-yearly │
+╞═════════════╪═════════╪══════════╪════╪══════════╪═══════════╪═══════════╪═════════════╪════════════╪═════════════╪══════════════╪═════════════╡
+│ daily-prune │         │ backupfs │    │ daily    │           │           │             │          7 │           4 │            6 │             │
+└─────────────┴─────────┴──────────┴────┴──────────┴───────────┴───────────┴─────────────┴────────────┴─────────────┴──────────────┴─────────────┘
+
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sdb1        49G  842M   46G   2% /mnt/datastore/backupfs
+Volid                                         Format  Type           Size VMID
+pbs-backup:backup/ct/100/2026-09-26T12:43:16Z pbs-ct  backup    690435791 100
+pbs-backup:backup/ct/100/2026-09-26T12:46:55Z pbs-ct  backup    690435767 100
+pbs-backup:backup/ct/100/2026-09-26T14:47:56Z pbs-ct  backup    690435886 100
+pbs-backup:backup/ct/110/2026-09-26T12:44:17Z pbs-ct  backup    885760896 110
+pbs-backup:backup/ct/111/2026-09-26T12:44:40Z pbs-ct  backup    885833418 111
+
+# Phase 7: Proxmox Backup Server
+
+## Why a separate machine, outside the cluster
+Ceph keeps three live copies, but replication is not backup. A deleted container
+is deleted on all three copies within a second; a bad config replicates through
+/etc/pve just as fast; ransomware encrypts all three. Replication keeps copies
+SYNCHRONISED, which means mistakes are synchronised too. A backup is a copy from
+a point in time that nothing can reach back and change.
+
+pbs therefore runs Proxmox Backup Server on its own machine, is not a cluster
+member, and does not participate in the replication that would propagate damage.
+
+## Setup
+- pbs-no-subscription repository; the installer added pbs-enterprise.sources,
+  which was disabled with "Enabled: no" (same 401 problem as Proxmox VE)
+- Datastore backupfs on the 50 GB disk (ext4, /mnt/datastore/backupfs, 47 GB usable)
+  created with: proxmox-backup-manager disk fs create backupfs --disk sdb
+  --filesystem ext4 --add-datastore true
+- User backup@pbs with role DatastoreBackup on /datastore/backupfs only.
+  That role permits creating and reading backups but NOT deleting them, so a
+  compromised cluster can write new backups but cannot destroy existing ones.
+- Cluster storage added on pve1 (replicates to all nodes via /etc/pve):
+  pvesm add pbs pbs-backup --server 10.10.0.6 --datastore backupfs
+  --username backup@pbs --fingerprint <sha256>
+  The fingerprint pins the self-signed certificate: the cluster refuses to
+  connect if it ever changes.
+
+## Deduplication, measured
+First backup of ct:100:  655 MiB backed up, compressed to 224 MiB, 43.7 MiB/s
+Second backup, nothing changed inside the container:
+  "had to backup 0 B of 658.033 MiB ... reused 658.033 MiB (100.0%)"
+  Datastore usage unchanged at 837M.
+Third backup, after writing one marker file: reused 96.1%.
+
+Three containers (~2.3 GiB of source data) occupy 837 MiB on disk. PBS splits
+data into chunks named by content hash; a chunk the server already holds is not
+transferred again. This is what makes daily backups affordable - only what
+actually changed is stored.
+
+## Verification
+proxmox-backup-manager verify backupfs: 3/3 groups, 0 errors, TASK OK.
+Verification re-reads every chunk and checks its hash, catching silent
+corruption while there is still time to do something about it. An unverified
+backup is a hope, not a backup.
+
+## Restore test (the point of the whole phase)
+1. Wrote a marker file inside ct:100: /root/marker.txt containing
+   "restore test marker 2026-09-26"
+2. Backed up (reused 96.1% - only the marker was new)
+3. ha-manager remove ct:100 - required first, because HA enforces a desired
+   state and would keep trying to start a guest that no longer exists
+4. pct stop 100 && pct destroy 100 - permanently deleted
+5. Confirmed destruction: vm-100-disk-0 was gone from "rbd -p vm-storage ls".
+   The only remaining copy was on the backup server.
+6. pct restore 100 pbs-backup:backup/ct/100/2026-09-26T14:47:56Z --storage vm-storage
+   restore complete (658.033 MiB processed in 7.7s, average 85.614 MiB/s)
+7. Started it and read the file back: "restore test marker 2026-09-26"
+
+The marker is what makes this a real test. It proves the data came back from
+the backup, rather than a fresh container having been created from a template.
+
+8. Re-added to HA management afterwards.
+
+## Retention
+PBS 4 keeps prune settings in prune jobs, not in the datastore config, so
+"datastore update --keep-daily" silently does nothing. Created instead:
+  proxmox-backup-manager prune-job create daily-prune --store backupfs
+  --schedule daily --keep-daily 7 --keep-weekly 4 --keep-monthly 6
+Without a retention policy backups accumulate until the disk fills, at which
+point backups start failing - usually unnoticed.
+
+## Note
+The vzdump output ends with a notification error because root has no email
+address configured and postfix is local-only. The backup itself completes
+before that; in production postfix would point at a real relay so failures
+actually reach someone.
