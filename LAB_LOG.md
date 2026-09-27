@@ -147,3 +147,10 @@ PLANNED maintenance, unlike unplanned node loss).
 - Verify job: 3/3 groups, 0 errors
 - RESTORE TEST: wrote a marker file, backed up, removed from HA, destroyed the container (confirmed vm-100-disk-0 gone from Ceph), restored from PBS in 7.7s, marker file read back intact
 - Retention: prune job daily-prune, 7 daily / 4 weekly / 6 monthly. Note PBS 4 uses prune jobs, not datastore keep-* settings
+- Phase 7 COMPLETE. PBS 4.2.6 on pbs, datastore backupfs (ext4, 47 GB), user backup@pbs with DatastoreBackup only (can write backups, cannot delete them)
+- Cluster storage pbs-backup added with certificate fingerprint pinned
+- Dedup measured: second backup of an unchanged container = 0 B transferred, 100% reused, datastore did not grow
+- Verify job: 3/3 groups, 0 errors
+- RESTORE TEST: wrote a marker file, backed up, removed from HA, destroyed the container (vm-100-disk-0 confirmed gone from Ceph), restored from PBS in 7.7s, marker read back intact
+- Retention: prune job daily-prune, 7 daily / 4 weekly / 6 monthly. PBS 4 uses prune jobs, not datastore keep-* settings
+- evidence/21-pbs-datastore.png
