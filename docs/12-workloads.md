@@ -96,3 +96,65 @@ that can.
   running VM, planned move    live migration          30 ms
   gateway after node loss     VRRP address takeover   < 1 s, 0 packets lost
   web service after node loss two instances + VRRP    < 1 s, 0 failed requests
+
+## Uptime Kuma: independent measurement of the failover
+
+ct:120 (kuma) on pve2, 10.20.0.120, 1 GB RAM / 8 GB disk. Node.js 22 from the
+NodeSource repository, Uptime Kuma 1.23.16 pinned by tag, run as a systemd unit
+on port 3001. Deliberately on pve2, which hosts neither web container, so the
+monitor survives the failure it is watching.
+
+Three HTTP monitors, 20 s interval, retries 0 (the default retry count would
+hide a short outage entirely):
+  Web VIP     http://10.20.0.50
+  web1 direct http://10.20.0.110
+  web2 direct http://10.20.0.111
+
+Test: pve1 powered off at 08:48. pve1 held web1 but NOT the gateway VIP
+(pve3 held that), so the only thing removed was one web server.
+
+Result, measured by the monitoring tool rather than by a shell loop:
+  Web VIP      100%     no failed check at any point
+  web1 direct  67.98%   down 08:48:05 -> 08:51:00, "timeout of 16000ms exceeded"
+  web2 direct  100%     unaffected
+
+web1 recovered on its own when pve1 came back, because the container has
+onboot 1. No manual intervention in either direction.
+
+The two bars side by side are the clearest single piece of evidence in this
+project: an unbroken green line for the service, a long red section for the
+individual server, same time window, same tool, same interval.
+
+## Problems hit while building this container
+
+1. apt failed completely inside ct:120 with endless "Tried to start delayed item"
+   warnings. Name resolution for deb.debian.org returned IPv6-only records while
+   the guest network is IPv4-only. Fixed with Acquire::ForceIPv4 "true" in
+   /etc/apt/apt.conf.d/. The same condition is what made ct:100 download at
+   174 kB/s back in phase 5 - there it was slow, here it blocked outright.
+
+2. MTU was NOT being applied inside any container. Proxmox config said
+   mtu=1410, but "ip link show eth0" inside the containers reported 1500 on all
+   four. The setting reaches the host end of the veth pair, not the container's
+   own interface. Symptom pattern: ping works, TCP connects, data transfer
+   stalls - because the container advertises a 1460-byte segment, which plus the
+   50-byte VXLAN header exceeds GCP's 1460 limit. web1 and web2 still worked
+   because TCP retransmits smaller until something fits; it is slow and wasteful
+   rather than broken. Set to 1410 on all four containers.
+
+3. The actual cause of the "container 120 cannot reach anything" symptom was
+   far simpler: curl was never installed, because the very first apt-get update
+   had failed at step 1. Every subsequent test ran a command that did not exist,
+   and 2>/dev/null hid the "No such file or directory" error. Lesson: do not
+   suppress stderr while diagnosing a failure - the hidden message was the
+   answer.
+
+4. npm ci --omit=dev is not enough for Uptime Kuma: the compiled front end
+   (dist/) is not in the repository. "npm run setup" is the correct step; it
+   downloads the prebuilt dist from the matching GitHub release.
+
+## Access
+Port forward on pve2 (same DNAT + MASQUERADE pattern as the web demo) plus
+firewall rule pve-allow-iap-kuma for tcp:3002 from the IAP range:
+  gcloud compute start-iap-tunnel pve2 3002 --local-host-port=localhost:3002
+  http://localhost:3002

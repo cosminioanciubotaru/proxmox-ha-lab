@@ -154,3 +154,9 @@ PLANNED maintenance, unlike unplanned node loss).
 - RESTORE TEST: wrote a marker file, backed up, removed from HA, destroyed the container (vm-100-disk-0 confirmed gone from Ceph), restored from PBS in 7.7s, marker read back intact
 - Retention: prune job daily-prune, 7 daily / 4 weekly / 6 monthly. PBS 4 uses prune jobs, not datastore keep-* settings
 - evidence/21-pbs-datastore.png
+- Uptime Kuma (ct:120, pve2, 10.20.0.120) monitoring the web VIP and both web containers, 20 s interval, retries 0
+- Independent failover measurement: pve1 off at 08:48 -> Web VIP 100% uptime, web1 direct 67.98% (down 08:48:05 to 08:51:00), web2 100%. web1 recovered by itself via onboot
+- FOUND: mtu=1410 in the Proxmox container config never reached the containers' own interfaces - all four were running at 1500. Fixed manually; TCP had been silently retransmitting smaller all along
+- FOUND: guest DNS returns IPv6-only for deb.debian.org; needs Acquire::ForceIPv4 in the container
+- Lesson: 2>/dev/null hid "curl: No such file or directory" and cost an hour of misdiagnosis
+- evidence/22-kuma-failover.png, 22-kuma-failover-1.png, 23-kuma-recovery.png
