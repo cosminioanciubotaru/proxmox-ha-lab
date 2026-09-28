@@ -164,3 +164,37 @@ pve1 restarted and came back with:
   container after node loss    HA restart              ~30 s
   running VM, planned move     live migration          30 ms
   gateway after node loss      VRRP address takeover   < 1 s, 0 packets lost
+
+## MTU bug found in phase 8 (2026-09-28)
+
+The MTU predicted in this phase turned out never to have been applied inside any
+container, and it took a full misdiagnosis to find.
+
+A container's connection is a veth pair: two linked virtual interfaces, one
+inside the container (eth0), one on the node plugged into gnet. The MTU has to
+match at both ends. Proxmox set 1410 on the node end, but the container's own
+/etc/network/interfaces - which Proxmox also writes - contained no mtu line, so
+eth0 inside came up at the Linux default of 1500. All four containers were
+affected.
+
+Consequence: the container advertises a 1460-byte segment, VXLAN adds 50 bytes,
+the result exceeds GCP's 1460 limit and is dropped.
+
+Why it was not noticed earlier: TCP retransmits smaller after a loss, so
+transfers eventually complete. web1 and web2 installed Caddy successfully - just
+slowly and with wasted retransmission. This is almost certainly the real reason
+ct:100 downloaded at 174 kB/s in this phase, which was attributed at the time to
+IPv6 fallback.
+
+Symptom pattern, worth recognising: ping works, DNS works, TCP connects, and
+data transfer stalls. Only full-size packets exceed the limit.
+
+Fix: add "mtu 1410" to the eth0 stanza in each container's own
+/etc/network/interfaces, so the container applies it at boot rather than relying
+on Proxmox passing it through. Verified to survive a reboot on all four.
+
+An earlier attempt using /etc/network/interfaces.d/ did not work: the
+container's interfaces file has no "source" line for that directory.
+
+CAVEAT: running "pct set <id> --net0 ..." rewrites the container's interfaces
+file and may remove the mtu line again. Re-check after any network change.
