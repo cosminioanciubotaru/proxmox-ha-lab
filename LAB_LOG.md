@@ -160,3 +160,11 @@ PLANNED maintenance, unlike unplanned node loss).
 - FOUND: guest DNS returns IPv6-only for deb.debian.org; needs Acquire::ForceIPv4 in the container
 - Lesson: 2>/dev/null hid "curl: No such file or directory" and cost an hour of misdiagnosis
 - evidence/22-kuma-failover.png, 22-kuma-failover-1.png, 23-kuma-recovery.png
+
+## Session 2026-09-28 (Phase 9)
+- MTU 1410 made persistent in all four containers, verified across reboots
+- Uptime Kuma (ct:120) built, three monitors, failover recorded independently
+- README written: results table, decisions with rejected alternatives, failures, limitations
+- Measurement caveats added: what was measured from outside vs reported by the tool
+- Credit check: EUR 218 of 257 remaining, 76 days, trial ends 2026-12-13
+- Phases 0-9 complete
